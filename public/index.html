@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Agent Chat</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0a0a0a;
+      color: #e0e0e0;
+      font-family: 'Inter', sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 14px 28px;
+      background: #111;
+      border-bottom: 1px solid #1f1f1f;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    header h1 { font-size: 15px; font-weight: 600; letter-spacing: 0.3px; color: #fff; }
+
+    #topic-badge {
+      margin-left: 12px;
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 999px;
+      padding: 3px 12px;
+      font-size: 12px;
+      color: #888;
+      max-width: 400px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    #status {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: #444;
+    }
+
+    #status-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #333;
+      transition: background 0.3s;
+    }
+
+    #status-dot.live { background: #22c55e; box-shadow: 0 0 8px #22c55e88; }
+
+    #chat {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      scroll-behavior: smooth;
+    }
+
+    #chat::-webkit-scrollbar { width: 4px; }
+    #chat::-webkit-scrollbar-track { background: transparent; }
+    #chat::-webkit-scrollbar-thumb { background: #222; border-radius: 4px; }
+
+    .message {
+      display: flex;
+      gap: 12px;
+      max-width: 640px;
+      animation: rise 0.35s ease;
+    }
+
+    .message.right { align-self: flex-end; flex-direction: row-reverse; }
+    .message.center { align-self: center; }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .avatar {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .agent-1 .avatar { background: #1a2e4a; color: #60a5fa; }
+    .agent-2 .avatar { background: #2e1a1a; color: #f87171; }
+    .agent-3 .avatar { background: #1a2e22; color: #4ade80; }
+
+    .bubble {
+      background: #141414;
+      border: 1px solid #1f1f1f;
+      border-radius: 14px;
+      padding: 12px 16px;
+      max-width: 520px;
+    }
+
+    .agent-1 .bubble { border-color: #1a2e4a; }
+    .agent-2 .bubble { border-color: #2e1a1a; }
+    .agent-3 .bubble { border-color: #1a2e22; }
+
+    .meta {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .name { font-size: 12px; font-weight: 600; }
+    .agent-1 .name { color: #60a5fa; }
+    .agent-2 .name { color: #f87171; }
+    .agent-3 .name { color: #4ade80; }
+
+    .time { font-size: 11px; color: #3a3a3a; }
+
+    .text { font-size: 13.5px; line-height: 1.65; color: #ccc; }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #2a2a2a;
+      font-size: 11px;
+    }
+
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #1f1f1f;
+    }
+
+    .divider span {
+      color: #444;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div id="status-dot"></div>
+    <h1>Agent Chat</h1>
+    <div id="topic-badge">Starting up...</div>
+    <div id="status"><span id="status-text">connecting</span></div>
+  </header>
+
+  <div id="chat"></div>
+
+  <script>
+    const chat = document.getElementById('chat');
+    const topicBadge = document.getElementById('topic-badge');
+    const statusDot = document.getElementById('status-dot');
+    const statusText = document.getElementById('status-text');
+
+    const agentMeta = {
+      1: { initials: 'AX', align: 'left' },
+      2: { initials: 'JO', align: 'right' },
+      3: { initials: 'SM', align: 'center' },
+    };
+
+    function addMessage(msg) {
+      const { initials, align } = agentMeta[msg.agentId];
+      const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const div = document.createElement('div');
+      div.className = `message agent-${msg.agentId}${align === 'right' ? ' right' : align === 'center' ? ' center' : ''}`;
+      div.innerHTML = `
+        <div class="avatar">${initials}</div>
+        <div class="bubble">
+          <div class="meta">
+            <span class="name">${msg.name}</span>
+            <span class="time">${time}</span>
+          </div>
+          <div class="text">${msg.text}</div>
+        </div>`;
+      chat.appendChild(div);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    function addDivider(topic) {
+      topicBadge.textContent = `💬 ${topic}`;
+      const div = document.createElement('div');
+      div.className = 'divider';
+      div.innerHTML = `<span>topic: ${topic}</span>`;
+      chat.appendChild(div);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    const es = new EventSource('/stream');
+
+    es.onopen = () => {
+      statusDot.classList.add('live');
+      statusText.textContent = 'live';
+    };
+
+    es.onerror = () => {
+      statusDot.classList.remove('live');
+      statusText.textContent = 'reconnecting';
+    };
+
+    es.onmessage = (e) => {
+      const msg = JSON.parse(e.data);
+      msg.type === 'topic' ? addDivider(msg.topic) : addMessage(msg);
+    };
+  </script>
+</body>
+</html>
