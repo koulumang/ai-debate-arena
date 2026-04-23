@@ -20,6 +20,15 @@ function broadcast(message) {
   clients.forEach(res => res.write(data));
 }
 
+// Heartbeat: every 30s remove connections whose response stream has already closed.
+setInterval(() => {
+  for (let i = clients.length - 1; i >= 0; i--) {
+    if (clients[i].writableEnded || clients[i].destroyed) {
+      clients.splice(i, 1);
+    }
+  }
+}, 30000);
+
 async function callAI(prompt) {
   const res = await fetch(OLLAMA, {
     method: 'POST',
@@ -53,6 +62,10 @@ You MUST directly respond to or build on the last message${last ? ` — "${last}
   broadcast(message);
 }
 
+const BACKOFF_MIN = 5000;
+const BACKOFF_MAX = 60000;
+let retryDelay = BACKOFF_MIN;
+
 async function loop() {
   while (true) {
     try {
@@ -64,9 +77,15 @@ async function loop() {
         await agentSpeak(agent);
         await new Promise(r => setTimeout(r, 20000));
       }
+      // Successful iteration — reset backoff.
+      retryDelay = BACKOFF_MIN;
     } catch (e) {
       console.error('Error:', e.message);
-      await new Promise(r => setTimeout(r, 5000));
+      // Notify all connected clients that AI is temporarily down.
+      broadcast({ system: 'AI temporarily unavailable' });
+      await new Promise(r => setTimeout(r, retryDelay));
+      // Exponential backoff: double the delay, capped at BACKOFF_MAX.
+      retryDelay = Math.min(retryDelay * 2, BACKOFF_MAX);
     }
   }
 }
